@@ -24,6 +24,12 @@
   };
 
   /**
+   * Начало отсчета даты хранения куки
+   * @const {string}
+  */
+  var BIRTH_DAY = '1985-04-08';
+
+  /**
    * Регулярное выражение, проверяющее тип загружаемого файла. Составляется
    * из ключей FileType.
    * @type {RegExp}
@@ -40,6 +46,38 @@
    * @type {Resizer}
    */
   var currentResizer;
+
+  /**
+   * Объект, занимающий работой с кукис из библиотеки browser-cookies
+   * @type {browser-cookies}
+   */
+  var browserCookies = require('browser-cookies');
+
+  /**
+   * Приведение даты к типу {Date} и поиск даты последнего ДР
+   * @return {Date}
+   */
+  function normalizeStartDate(date) {
+    date = new Date(date);
+    if (!isNaN(date)) {
+      date.setFullYear(new Date(Date.now()).getFullYear());
+      if (date > Date.now()) {
+        date.setFullYear(date.getFullYear() - 1);
+      }
+    }
+    return date;
+  }
+
+  /**
+   * Расчет периода хранения куки
+   * @return {Number}
+   */
+  function daysToExpire(startDate) {
+    if (!isNaN(startDate)) {
+      return Math.floor((Date.now() - startDate) / (24 * 60 * 60 * 1000));
+    }
+    return 0;
+  }
 
   /**
    * Удаляет текущий объект {@link Resizer}, чтобы создать новый с другим
@@ -259,6 +297,8 @@
 
       resizeForm.classList.add('invisible');
       filterForm.classList.remove('invisible');
+      filterForm['upload-filter-' + browserCookies.get('filter') || 'none'].checked = true;
+      filterForm.onchange();
     }
   };
 
@@ -281,6 +321,7 @@
   filterForm.onsubmit = function(evt) {
     evt.preventDefault();
 
+    browserCookies.set('filter', filterForm['upload-filter'].value, {expires: daysToExpire(normalizeStartDate(BIRTH_DAY))});
     cleanupResizer();
     updateBackground();
 
