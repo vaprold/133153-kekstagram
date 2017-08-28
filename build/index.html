@@ -88,6 +88,22 @@
   </a>
 </template>
 
+<script charset="utf-8">
+  /**
+   * Массив картинок для фона
+   * @type {Array.<Object>}
+   */
+  var pictures = [];
+
+  /**
+   * Функция-колбэк для вызова JSONP
+   * @param {Array.<Object>} data
+   */
+  var __picturesLoadCallback = function(data) {
+    pictures = data;
+  };
+</script>
+<script src="//up.htmlacademy.ru/assets/js_intensive/jsonp/pictures.js" charset="utf-8"></script>
 <script src="js/main.js"></script>
 
 </body>
