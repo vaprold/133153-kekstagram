@@ -8,6 +8,12 @@
   var IMAGE_LOAD_TIMEOUT = 5000;
 
   /**
+   * Массив данных о плитках для фона
+   * @type {Array.<Object>}
+   */
+  var tiles = [];
+
+  /**
    * Контейнер шаблонов элементов
    * @type {HTMLElement}
    */
@@ -23,7 +29,7 @@
    * Контейнер для плиток
    * @type {HTMLElement}
    */
-  var picturesContainer = document.querySelector('.pictures');
+  var tilesContainer = document.querySelector('.pictures');
 
   /**
    * Фильтры
@@ -31,19 +37,12 @@
    */
   var filtersElement = document.querySelector('.filters');
 
-  // Проверка, что фильтры спрятаны, иначе прячем
-  if (!filtersElement.classList.contains('hidden')) {
-    filtersElement.classList.add('hidden');
-  }
-
-  // Проверка для старых браузеров, не поддерживающих template
-  if ('content' in templateElement) {
-    tileTemplate = templateElement.content.querySelector('.picture');
-  } else {
-    tileTemplate = templateElement.querySelector('.picture');
-  }
-
-  window.pictures.forEach(function(picture) {
+  /**
+   * Возвращает подготовленный элемент плитки
+   * @param {Object} tile
+   * @returns {HTMLElement}
+   */
+  var getTileElement = function(tile) {
     /**
      * Клонированный элемент
      * @type {HTMLElement}
@@ -90,15 +89,44 @@
       }, IMAGE_LOAD_TIMEOUT);
 
       // Установка источника изображения для фото (url) и для видео (preview)
-      tileImage.src = ('preview' in picture) ? picture.preview : picture.url;
+      tileImage.src = ('preview' in tile) ? tile.preview : tile.url;
     })();
 
-    tileElement.querySelector('.picture-comments').textContent = picture.comments;
-    tileElement.querySelector('.picture-likes').textContent = picture.likes;
+    tileElement.querySelector('.picture-comments').textContent = tile.comments;
+    tileElement.querySelector('.picture-likes').textContent = tile.likes;
 
-    // Добавление полностью настроенного клонрованного элемента в контейнер
-    picturesContainer.appendChild(tileElement);
-  });
+    return tileElement;
+  };
+
+  /**
+   * Отрисовывает коллекцию плиток в контейнер
+   * @param {Array.<Object>} tilesCollection
+   * @param {HTMLElement} container
+   */
+  var renderTilesCollection = function(tilesCollection, container) {
+    // очистка контейнера
+    container.innerHTML = '';
+    tilesCollection.forEach(function(tile) {
+      // Добавление полностью настроенного клонрованного элемента в контейнер
+      container.appendChild(getTileElement(tile));
+    });
+  };
+
+  // Проверка, что фильтры спрятаны, иначе прячем
+  if (!filtersElement.classList.contains('hidden')) {
+    filtersElement.classList.add('hidden');
+  }
+
+  // Проверка для старых браузеров, не поддерживающих template
+  if ('content' in templateElement) {
+    tileTemplate = templateElement.content.querySelector('.picture');
+  } else {
+    tileTemplate = templateElement.querySelector('.picture');
+  }
+
+  // отрисовка исходных плиток
+  tiles = window.pictures;
+  renderTilesCollection(tiles, tilesContainer);
 
   // Показываем фильтры только когда все плитки отрисованы
   filtersElement.classList.remove('hidden');
