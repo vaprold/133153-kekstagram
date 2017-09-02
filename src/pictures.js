@@ -8,10 +8,16 @@
   var IMAGE_LOAD_TIMEOUT = 5000;
 
   /**
+   * @const
+   * @type {string}
+   */
+  var DATA_LOAD_URL = '/json/pictures.json';
+
+  /**
    * Массив данных о плитках для фона
    * @type {Array.<Object>}
    */
-  var tiles = [];
+  var tilesArray = [];
 
   /**
    * Контейнер шаблонов элементов
@@ -33,9 +39,9 @@
 
   /**
    * Фильтры
-   * @type {HTMLElement}
+   * @type {HTMLFormElement}
    */
-  var filtersElement = document.querySelector('.filters');
+  var tileFilterForm = document.querySelector('.filters');
 
   /**
    * Возвращает подготовленный элемент плитки
@@ -100,22 +106,134 @@
 
   /**
    * Отрисовывает коллекцию плиток в контейнер
-   * @param {Array.<Object>} tilesCollection
-   * @param {HTMLElement} container
+   * @param {Array.<Object>} arr
    */
-  var renderTilesCollection = function(tilesCollection, container) {
+  var renderTilesCollection = function(arr) {
+    // Проверка, что фильтры спрятаны, иначе прячем
+    if (!tileFilterForm.classList.contains('hidden')) {
+      tileFilterForm.classList.add('hidden');
+    }
+
     // очистка контейнера
-    container.innerHTML = '';
-    tilesCollection.forEach(function(tile) {
+    tilesContainer.innerHTML = '';
+
+    arr.forEach(function(tile) {
       // Добавление полностью настроенного клонрованного элемента в контейнер
-      container.appendChild(getTileElement(tile));
+      tilesContainer.appendChild(getTileElement(tile));
     });
+
+    // Показываем фильтры только когда все плитки отрисованы
+    tileFilterForm.classList.remove('hidden');
   };
 
-  // Проверка, что фильтры спрятаны, иначе прячем
-  if (!filtersElement.classList.contains('hidden')) {
-    filtersElement.classList.add('hidden');
-  }
+  /**
+   * Сортировка массива плиток
+   * @param {string} sort
+   * @returns {Array.<Object>}
+   */
+  var sortTileArray = function(sort) {
+    var arr = tilesArray.slice(0);
+
+    switch (sort) {
+      case 'popular':
+        // возвращаем исодный массив
+        arr = tilesArray;
+        break;
+      case 'new':
+        arr = arr.sort(function(a, b) {
+          // сортировка даты по убыванию
+          return new Date(b.date) - new Date(a.date);
+        }).filter(function(tile) {
+          // филтрация по датам за последние 2 недели
+          // return new Date(tile.date) > (Date.now() - 14 * 24 * 60 * 60 * 1000);
+          // поскольку данных за 2 недели мало, для красоты возвращает тру всегда))
+          return tile;
+        });
+        break;
+      case 'discussed':
+        arr.sort(function(a, b) {
+          // сортировка каментов по убыванию
+          return b.comments - a.comments;
+        });
+        break;
+    }
+
+    return arr;
+  };
+
+  /**
+   * обработчик изменения выбранного фильтра
+   * @param {Event} evt
+   */
+  var tileFilterChange = function(evt) {
+    // отрисовываем осортированнй нужным образом массив
+    renderTilesCollection(sortTileArray(evt.target.value));
+  };
+
+  /**
+   * Загружает данные о плитках по http
+   * @param {string} url
+   */
+  var loadTilesData = function(url) {
+    var xhr = new XMLHttpRequest();
+
+    // обработка события прогресс
+    var xhrOnProgress = function() {
+      tilesContainer.classList.add('pictures-loading');
+    };
+
+    // обработка события ошибка или таймаут
+    var xhrOnError = function() {
+      tilesContainer.classList.remove('pictures-loading');
+      tilesContainer.classList.add('pictures-failure');
+
+      // удаление класса для отображения ошибки с задержкой
+      setTimeout(function() {
+        tilesContainer.classList.remove('pictures-failure');
+      }, 1000);
+    };
+
+    // обработка события загрузки
+    var xhrOnLoad = function(evt) {
+      // проверка, что данные загружены успешно
+      var isError = !(evt.target.status === 200);
+
+      if (!isError) {
+        // обрабатываем случай ошибки парсинга полученных данных
+        try {
+          tilesArray = JSON.parse(evt.target.response);
+          // отрисовываем полученные данные
+          renderTilesCollection(tilesArray);
+
+          // удаление класса для отображения статуса загрузки с задержкой
+          setTimeout(function() {
+            tilesContainer.classList.remove('pictures-loading');
+          }, 100);
+
+          // выход из функции, если всё успешно, иначе произойдет вызов обработчика ошибки
+          return;
+        } catch (err) {
+          isError = true;
+        }
+      }
+
+      // если исполнение дошло до сюда, то произошла ошибка
+      xhrOnError();
+    };
+
+    // настраиваем запрос
+    xhr.open('GET', url);
+    xhr.timeout = 10000;
+
+    // установка обработчиков
+    xhr.onload = xhrOnLoad;
+    xhr.onprogress = xhrOnProgress;
+    xhr.onerror = xhrOnError;
+    xhr.ontimeout = xhrOnError;
+
+    // обработка полученных данных выполняеться обработчиком загрузки
+    xhr.send();
+  };
 
   // Проверка для старых браузеров, не поддерживающих template
   if ('content' in templateElement) {
@@ -124,10 +242,9 @@
     tileTemplate = templateElement.querySelector('.picture');
   }
 
-  // отрисовка исходных плиток
-  tiles = window.pictures;
-  renderTilesCollection(tiles, tilesContainer);
+  // устанавливаем обработчик для фильтров
+  tileFilterForm.onchange = tileFilterChange;
 
-  // Показываем фильтры только когда все плитки отрисованы
-  filtersElement.classList.remove('hidden');
+  // загрузка данных о плитках по HTTP
+  loadTilesData(DATA_LOAD_URL);
 })();
