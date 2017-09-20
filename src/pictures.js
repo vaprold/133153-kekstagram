@@ -78,6 +78,9 @@
    */
   var tilesCount;
 
+  /** @type {number} идентификатор таймаута обработчика скролла */
+  var scrollTimeout;
+
   /**
    * Шаблон плитки
    * @type {HTMLElement}
@@ -210,11 +213,24 @@
   };
 
   /**
-   * Отрисовывает коллекцию плиток в контейнер
+   * Отрисовка переданного массива плиток
+   * @param {Array.<Object>} arr
+   */
+  var renderTilesArray = function(arr) {
+    arr.forEach(function(tile) {
+      // Добавление полностью настроенного клонрованного элемента в контейнер
+      tilesContainer.appendChild(getTileElement(tile));
+      // Увеличиваем счетчик отрисованных элементов
+      tilesCount++;
+    });
+  };
+
+  /**
+   * Отрисовывает очередную страницу массива плиток в контейнер
    * @param {Array.<Object>} arr
    * @param {boolean} clear
    */
-  var renderTilesCollection = function(arr, clear) {
+  var renderNextTilePage = function(clear) {
     // Если флаг офистки выставлен в true, то очищаем контейнер и обнуляем счетчики
     if (clear) {
       tilesContainer.innerHTML = '';
@@ -222,14 +238,8 @@
       tilesCount = 0;
     }
 
-    // Копируем часть массива для отрисовки, начиная с последнего отрисованного в контейнере элемента в расчитанном количестве
-    var arrToRender = arr.slice(tilesCount, tilesCount + getTilesPerPage(pagesCount));
-    arrToRender.forEach(function(tile) {
-      // Добавление полностью настроенного клонрованного элемента в контейнер
-      tilesContainer.appendChild(getTileElement(tile));
-      // Увеличиваем счетчик отрисованных элементов
-      tilesCount++;
-    });
+    // Отрисовываем часть коллекции, начиная с последнего отрисованного в контейнере элемента в расчитанном количестве
+    renderTilesArray(filteredTilesArray.slice(tilesCount, tilesCount + getTilesPerPage(pagesCount)));
 
     // Увеличиваем счетчик отрисованных страниц
     pagesCount++;
@@ -320,7 +330,37 @@
     filteredTilesArray = sortArray(filterArray(tilesArray));
 
     // Отрисовываем отсортированный массив
-    renderTilesCollection(filteredTilesArray, REDRAW_PAGE);
+    renderNextTilePage(REDRAW_PAGE);
+  };
+
+  /**
+   * Пересчет количества отрисованных страниц и отрисовка недостающих плиток
+   */
+  var pagesRecount = function() {
+    var pages = 0;
+    var tiles = 0;
+
+    do {
+      // Вычисляем страницу, на которой отрисовано больше, либо столько же плиток как в счетчике pagesCount
+      tiles += getTilesPerPage(pages);
+      pages++;
+    } while (tilesCount > tiles);
+
+    // Обновляем счетчик страниц
+    pagesCount = pages;
+
+    // Отрисовываем недостающие на текущей транице плитки
+    renderTilesArray(filteredTilesArray.slice(tilesCount, tiles));
+  };
+
+  /**
+   * Отрисовка следующей страницы если достигнут низ экрана
+   */
+  var scrollRedraw = function() {
+      // запускаем отрисовку массива, в случае, если низ страницы уже достигнут, а массив полностью ещё не отрисован
+    if (isBottomReached() && !isArrayDrawn()) {
+      renderNextTilePage();
+    }
   };
 
   /**
@@ -420,23 +460,16 @@
     tileTemplate = templateElement.querySelector('.picture');
   }
 
-  window.onresize1 = function() {
-    debugger;
-    // Перерисовываем плитки постранично до тех пор, пока не отрисуем столько же, либо больше
-    var clear = true;
-    var drawnTilesCount = tilesCount;
-    do {
-      renderTilesCollection(filteredTilesArray, clear);
-      clear = false;
-    } while (tilesCount < drawnTilesCount);
+  window.onresize = function() {
+    // пересчёт количества отрисованных страниц и дорисовка плиток при необходимости
+    pagesRecount();
   };
 
-  // обработчик события "прокрутка"
   window.onscroll = function() {
-    // запускаем отрисовку массива, в случае, если низ страницы уже достигнут, а массив полностью ещё не отрисован
-    if (isBottomReached() && !isArrayDrawn()) {
-      renderTilesCollection(filteredTilesArray);
-    }
+    // очистка раннее установленного таймера для
+    clearTimeout(scrollTimeout);
+    // запуск отрисовки спустя 100мс после окончания прокрутки
+    scrollTimeout = setTimeout(scrollRedraw, 100);
   };
 
   // устанавливаем обработчики событий для фильтров
