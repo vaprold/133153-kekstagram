@@ -368,7 +368,8 @@
    * @param {Event} evt
    */
   var tileFilterSet = function(evt) {
-    if (evt.target.tagName === 'INPUT' && evt.target.type === 'radio') {
+    if (((evt.type === 'click') || (evt.keyCode === 13 || evt.keyCode === 32))
+      && evt.target.tagName === 'INPUT' && evt.target.type === 'radio') {
       // Если новая сортировка соответствует установленной, то сортируем в обратном порядке
       sortType.ascending = (sortType.type === evt.target.value) && !sortType.ascending;
       sortType.type = evt.target.value;
@@ -376,6 +377,28 @@
       // сортируем и отрисовываем массив
       sortTileArray(sortType.type, sortType.ascending);
     }
+  };
+
+  // Обработчик изменения размера окна
+  var windowResize = function() {
+    // пересчёт количества отрисованных страниц и дорисовка плиток при необходимости
+    pagesRecount();
+  };
+
+  // Обработчик события прокрутка
+  var windowScroll = function() {
+    // очистка раннее установленного таймера для
+    clearTimeout(scrollTimeout);
+    // запуск отрисовки спустя 100мс после окончания прокрутки
+    scrollTimeout = setTimeout(scrollRedraw, 100);
+  };
+
+  // Установка обработчиков событий
+  var setListeners = function() {
+    window.addEventListener('resize', windowResize);
+    window.addEventListener('scroll', windowScroll);
+    tileFilterForm.addEventListener('click', tileFilterSet);
+    tileFilterForm.addEventListener('keydown', tileFilterSet);
   };
 
   /**
@@ -444,10 +467,10 @@
     xhr.timeout = 10000;
 
     // установка обработчиков
-    xhr.onload = xhrOnLoad;
-    xhr.onprogress = xhrOnProgress;
-    xhr.onerror = xhrOnError;
-    xhr.ontimeout = xhrOnError;
+    xhr.addEventListener('load', xhrOnLoad);
+    xhr.addEventListener('progress', xhrOnProgress);
+    xhr.addEventListener('error', xhrOnError);
+    xhr.addEventListener('timeout', xhrOnError);
 
     // обработка полученных данных выполняеться обработчиком загрузки
     xhr.send();
@@ -460,25 +483,8 @@
     tileTemplate = templateElement.querySelector('.picture');
   }
 
-  window.onresize = function() {
-    // пересчёт количества отрисованных страниц и дорисовка плиток при необходимости
-    pagesRecount();
-  };
-
-  window.onscroll = function() {
-    // очистка раннее установленного таймера для
-    clearTimeout(scrollTimeout);
-    // запуск отрисовки спустя 100мс после окончания прокрутки
-    scrollTimeout = setTimeout(scrollRedraw, 100);
-  };
-
-  // устанавливаем обработчики событий для фильтров
-  tileFilterForm.onclick = tileFilterSet;
-  tileFilterForm.onkeydown = function(evt) {
-    if (evt.keyCode === 13 || evt.keyCode === 32) {
-      tileFilterSet(evt);
-    }
-  };
+  // Устанавливаем обработчики событий
+  setListeners();
 
   // загрузка данных о плитках по HTTP
   loadTilesData(DATA_LOAD_URL);
